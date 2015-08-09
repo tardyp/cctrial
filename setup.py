@@ -4,12 +4,15 @@
 Standard setup script.
 """
 from setuptools import setup
+import os
 
+README = open(os.path.join(os.path.dirname(__file__), "README.rst")).read()
 
 setup(
     name="cctrial",
-    version="1.0.0",
+    version="1.0.1",
     description="continous trial runner",
+    long_description=README,
     author="Pierre Tardy",
     author_email="tardyp@gmail.com",
     license="MIT",
