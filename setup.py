@@ -3,7 +3,7 @@
 """
 Standard setup script.
 """
-from distutils.core import setup
+from setuptools import setup
 
 
 setup(
@@ -22,5 +22,6 @@ setup(
     install_requires=[
         'twisted >= 15.0.0',
         'argh',
+        'watchdog'
     ]
 )

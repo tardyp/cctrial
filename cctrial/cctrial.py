@@ -24,6 +24,7 @@ from twisted.trial import runner
 from twisted.internet import reactor
 from .runner import Runner
 
+
 class MyHandler(FileSystemEventHandler):
     def on_modified(self, e):
         if e.src_path.endswith(".py"):
@@ -135,7 +136,7 @@ class MyReporter(TreeReporter):
     def _printResults(self, flavor, errors, formatter):
         for reason, cases in sorted(self._groupResults(errors, formatter), key=lambda x: len(x[1])):
             self._write(self._doubleSeparator)
-            self._write(" %d case%s: " % (len(cases),len(cases) > 1 and "s" or ""))
+            self._write(" %d case%s: " % (len(cases), len(cases) > 1 and "s" or ""))
             if "ERROR" in flavor or "FAILURE" in flavor:
                 self._colorizer.write(flavor, self.ERROR)
                 self._writeln('')
