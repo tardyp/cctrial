@@ -53,7 +53,7 @@ Additional features
 - Only during the fix test loop, logs for the current testcase are printed, as well as the failure details, and stdout/stderr of testcase.
 
 - Desktop notification support.
-  This one requires ``terminal-notifier`` on OSX or ``notify-send`` on freedesktop capable systems (e.g linux, *BSD)
+  This one requires ``terminal-notifier`` on OSX or ``notify-send`` on freedesktop capable systems (e.g linux, xBSD).
 
 Screenshots
 -----------
@@ -75,6 +75,7 @@ Screenshots
 After introducing a bug:
 
 .. code-block:: text
+
     Running 38 tests.
 
 
