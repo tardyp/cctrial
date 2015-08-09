@@ -3,6 +3,10 @@ import argh
 import shutil
 import os
 import sys
+import inspect
+import StringIO
+from importlib import import_module
+
 notify = lambda _, __: None
 if sys.platform == 'darwin':
     try:
@@ -24,10 +28,13 @@ from twisted.trial import runner
 from twisted.internet import reactor
 from .runner import Runner
 
+modified_files = []
+
 
 class MyHandler(FileSystemEventHandler):
     def on_modified(self, e):
         if e.src_path.endswith(".py"):
+            modified_files.append(e.src_path)
             myReactor.wake()
 
 
@@ -174,14 +181,55 @@ def filterSuite(suite, grep):
             tests.append(test)
     return TestSuite(tests)
 
+db = {}
+
+
+def addTestForFile(fn, test):
+    if fn.endswith(".pyc"):
+        fn = fn[:-1]
+    db.setdefault(fn, set())
+    db[fn].add(test)
+
+
+def findFile(o):
+    m = dict(inspect.getmembers(o))
+    if '__file__' in m:
+        return m['__file__']
+    if '__module__' in m:
+        return import_module(m['__module__']).__file__
+
+
+def buildSmartDB(suite):
+    # remove any DeprecationWarnings due to inspect
+    old_stderr = sys.stderr
+    old_stdout = sys.stdout
+    sys.stderr = StringIO.StringIO()
+    sys.stdout = StringIO.StringIO()
+    for test in iter(suite):
+        if isinstance(test, TestSuite):
+            buildSmartDB(test)
+        else:
+            for p in test._parents:
+                if isinstance(p, type(sys)):
+                    addTestForFile(p.__file__, test)
+                    for imports in dir(p):
+                        f = findFile(getattr(p, imports))
+                        if f and f is not p.__file__ and '/lib/' not in f:
+                            addTestForFile(f, test)
+    sys.stderr = old_stderr
+    sys.stdout = old_stdout
+
 
 @argh.arg('test_names', nargs='+')
 @argh.arg('-f', '--forever', help="run forever even if all tests are passed")
 @argh.arg('-j', '--jobs', help="number of cpu to use", type=int)
 @argh.arg('-g', '--grep', help="filter the tests")
 @argh.arg('-v', '--verbose', help="list all tests run", action="store_true")
-def cctrial(test_names, forever=False, jobs=1, grep=None, verbose=False):
+@argh.arg('-s', '--smart', help="Smart runs. Run only tests affected by modified file", action="store_true")
+def cctrial(test_names, forever=False, jobs=1, grep=None, verbose=False, smart=False):
     paths = []
+    if smart:
+        forever = True
     for importer, name, ispkg in pkgutil.iter_modules():
         if ispkg and '/lib/' not in importer.path:
             paths.append(importer.path)
@@ -190,17 +238,40 @@ def cctrial(test_names, forever=False, jobs=1, grep=None, verbose=False):
     observe_with(observer, MyHandler(), paths, True)
     loader = runner.TestLoader()
     suite = loader.loadByNames(test_names, True)
+
     if grep is not None:
         suite = filterSuite(suite, grep)
     initial_suite = suite
+
     if verbose:
         for test in suite:
             print test.id()
+
     if suite.countTestCases() == 0:
         print "no test selected"
         return
+
+    if smart:
+        print "building smart db..."
+        buildSmartDB(suite)
+
     trial = prepareRun(suite, jobs)
     while True:
+        if smart:
+            while not modified_files:
+                myReactor.wait()
+            print "run test for files:"
+            print "\n".join(modified_files)
+            tests = set()
+            for fn in modified_files:
+                if fn in db:
+                    tests.update(db[fn])
+            modified_files[:] = []
+            if tests:
+                suite = TestSuite(tests)
+            else:
+                print "no test detected for this file..."
+                continue
         result = trial.run(suite)
         to_retry = set()
         for e in result.original.errors:

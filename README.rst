@@ -7,6 +7,8 @@ cctrial will re-run failed tests until all succeed.
 
 cctrial is designed for a specific workflow, which helps doing big refactors that break lots of tests.
 
+cctrial smart mode can run only the tests that import the modified file.
+
 cctrial is not designed to replace trial, for all other usecases.
 
 Installation
@@ -164,3 +166,11 @@ In order to optimize startup time:
 
 - We discover the tests only once
   test discovery for buildbot takes 2160ms
+
+Smart mode tries to be smart..
+
+- Best option would be to run all tests in coverage mode, and see which file the tests exercices.
+  This would require a lot of overhead in the beginning.
+  
+- We choose simpler option: For all the test cases, we look at its module imports statements.
+  For all the module imported by the testcase, we decide that the testcase exercices the files defining those modules.
