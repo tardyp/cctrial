@@ -54,3 +54,94 @@ Additional features
 
 - Desktop notification support.
   This one requires ``terminal-notifier`` on OSX or ``notify-send`` on freedesktop capable systems (e.g linux, *BSD)
+
+Screenshots
+-----------
+
+.. code-block:: text
+
+    % cctrial buildbot.test.regressions
+    Running 38 tests.
+
+
+    -------------------------------------------------------------------------------
+    Ran 38 tests in 1.400s
+
+    PASSED (successes=38)
+    buildbot.test.regressions.test_unpickling.StatusPickles.test_upgrade      38/   38     0F          0E          0S          0T          0!
+    waiting for filesystem change...
+
+
+After introducing a bug:
+
+.. code-block:: text
+    Running 38 tests.
+
+
+    =============================================================================== 4 cases: [ERROR]
+    Traceback (most recent call last):
+      File "/Users/ptardy/dev/bb/buildbot-heroku/buildbot/master/buildbot/test/regressions/test_import_unicode_changes.py", line 31, in make_dbc
+        self.db = DBConnector(master, self.basedir)
+    exceptions.TypeError: __init__() takes exactly 2 arguments (3 given)
+
+    -------------------------------------------------------------------------------
+    Ran 38 tests in 0.272s
+
+    FAILED (errors=4, successes=34)
+    buildbot.test.regressions.test_unpickling.StatusPickles.test_upgrade      38/   38     0F          4E          0S          0T          0!
+    re-run: testAsciiChange (buildbot.test.regressions.test_import_unicode_changes.TestUnicodeChanges)
+    Running 1 tests.
+
+
+    =============================================================================== 1 case: [ERROR]
+    Traceback (most recent call last):
+      File "/Users/ptardy/dev/bb/buildbot-heroku/buildbot/master/buildbot/test/regressions/test_import_unicode_changes.py", line 31, in make_dbc
+        self.db = DBConnector(master, self.basedir)
+    exceptions.TypeError: __init__() takes exactly 2 arguments (3 given)
+
+    -------------------------------------------------------------------------------
+    Ran 1 tests in 0.001s
+
+    FAILED (errors=1)
+
+    Logs: Log opened.
+    --> buildbot.test.regressions.test_import_unicode_changes.TestUnicodeChanges.testAsciiChange <--
+    cleaning database sqlite://
+    Main loop terminated.
+
+
+
+    please fix: testAsciiChange (buildbot.test.regressions.test_import_unicode_changes.TestUnicodeChanges)
+    waiting for filesystem change...
+
+After fixing the bug:
+
+.. code-block:: text
+
+    re-run: testAsciiChange (buildbot.test.regressions.test_import_unicode_changes.TestUnicodeChanges)
+    Running 1 tests.
+
+
+    -------------------------------------------------------------------------------
+    Ran 1 tests in 0.001s
+
+    PASSED (successes=1)
+
+    Running 4 tests.
+
+
+    -------------------------------------------------------------------------------
+    Ran 4 tests in 0.610s
+
+    PASSED (successes=4)
+    buildbot.test.regressions.test_import_unicode_changes                      4/    4     0F          0E          0S          0T          0!
+
+    Running 38 tests.
+
+
+    -------------------------------------------------------------------------------
+    Ran 38 tests in 1.400s
+
+    PASSED (successes=38)
+    buildbot.test.regressions.test_unpickling.StatusPickles.test_upgrade      38/   38     0F          0E          0S          0T          0!
+    waiting for filesystem change...
