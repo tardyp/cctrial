@@ -146,3 +146,21 @@ After fixing the bug:
     PASSED (successes=38)
     buildbot.test.regressions.test_unpickling.StatusPickles.test_upgrade      38/   38     0F          0E          0S          0T          0!
     waiting for filesystem change...
+
+
+Design Notes
+------------
+
+Problem with re-running tests is that you cannot reuse the same python environment.
+Using builtin 'reload' is really something you want to avoid.
+
+cctrial uses DistTrialRunner in order to implement the reload.
+The workers leave in a separate python environment and are re-spawn between runs.
+
+In order to optimize startup time:
+
+- We prepare the workers while waiting for the filesystem change.
+  ``import twisted.internet.reactor`` takes 600ms.
+
+- We discover the tests only once
+  test discovery for buildbot takes 2160ms

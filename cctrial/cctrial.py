@@ -196,6 +196,9 @@ def cctrial(test_names, forever=False, jobs=1, grep=None, verbose=False):
     if verbose:
         for test in suite:
             print test.id()
+    if suite.countTestCases() == 0:
+        print "no test selected"
+        return
     trial = prepareRun(suite, jobs)
     while True:
         result = trial.run(suite)
