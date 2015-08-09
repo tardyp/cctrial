@@ -165,10 +165,22 @@ def prepareRun(suite, jobs=1):
     return trial
 
 
+def filterSuite(suite, grep):
+    tests = []
+    for test in iter(suite):
+        if isinstance(test, TestSuite):
+            tests.extend(iter(filterSuite(test, grep)))
+        elif grep in test.id():
+            tests.append(test)
+    return TestSuite(tests)
+
+
 @argh.arg('test_names', nargs='+')
 @argh.arg('-f', '--forever', help="run forever even if all tests are passed")
 @argh.arg('-j', '--jobs', help="number of cpu to use", type=int)
-def cctrial(test_names, forever=False, jobs=1):
+@argh.arg('-g', '--grep', help="filter the tests")
+@argh.arg('-v', '--verbose', help="list all tests run", action="store_true")
+def cctrial(test_names, forever=False, jobs=1, grep=None, verbose=False):
     paths = []
     for importer, name, ispkg in pkgutil.iter_modules():
         if ispkg and '/lib/' not in importer.path:
@@ -177,7 +189,13 @@ def cctrial(test_names, forever=False, jobs=1):
     observer = Observer()
     observe_with(observer, MyHandler(), paths, True)
     loader = runner.TestLoader()
-    suite = initial_suite = loader.loadByNames(test_names, True)
+    suite = loader.loadByNames(test_names, True)
+    if grep is not None:
+        suite = filterSuite(suite, grep)
+    initial_suite = suite
+    if verbose:
+        for test in suite:
+            print test.id()
     trial = prepareRun(suite, jobs)
     while True:
         result = trial.run(suite)
