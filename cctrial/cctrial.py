@@ -190,9 +190,14 @@ def cctrial(test_names, forever=False, jobs=1):
             notify("%d tests run" % (suite.countTestCases()),
                    "everything good!")
             if forever:
-                suite = initial_suite
+                if suite == initial_suite:
+                    wait = True
+                else:
+                    wait = False
+                    suite = initial_suite
                 trial = prepareRun(suite, jobs)
-                myReactor.wait()
+                if wait:
+                    myReactor.wait()
                 continue
             else:
                 print "congrats!"
