@@ -1,0 +1,26 @@
+# All files to globally ignore
+*.pyc
+*.pyo
+*$py.class
+# vim trash:
+.*.sw[a-z]
+*.patch
+*.orig
+*.rej
+*#
+*~
+MANIFEST
+_trial_temp*
+dist
+build/
+.build
+*.egg-info
+.stgit-edit.txt
+.project
+.pydevproject
+.settings
+.coverage
+coverage-html
+_build
+.tox
+sandbox
