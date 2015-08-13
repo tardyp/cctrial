@@ -6,6 +6,7 @@ from twisted.internet.task import cooperate
 from twisted.trial.util import _unusedTestDirectory
 from twisted.trial._asyncrunner import _iterateTests
 from twisted.trial._dist.worker import LocalWorkerAMP
+from twisted.trial._dist import _WORKER_AMP_STDIN
 
 
 class Runner(DistTrialRunner):
@@ -27,6 +28,7 @@ class Runner(DistTrialRunner):
                                    self._workerArguments)
         self.processEndDeferreds = processEndDeferreds
         self.ampWorkers = ampWorkers
+        self.workers = workers
         self.testDirLock = testDirLock
 
     def run(self, suite):
@@ -73,32 +75,23 @@ class Runner(DistTrialRunner):
             return DeferredList(workerDeferreds, consumeErrors=True,
                                 fireOnOneErrback=True)
 
-        stopping = []
-
-        def nextRun(ign):
+        def writeResults(ign):
             self.writeResults(result)
+
+        def killWorkers(ign):
+            for worker in self.workers:
+                worker.transport.closeChildFD(_WORKER_AMP_STDIN)
+            return DeferredList(processEndDeferreds, consumeErrors=True)
 
         def stop(ign):
             testDirLock.unlock()
-            if not stopping:
-                stopping.append(None)
-                self.reactor.stop()
-
-        def beforeShutDown():
-            if not stopping:
-                stopping.append(None)
-                d = DeferredList(processEndDeferreds, consumeErrors=True)
-                return d.addCallback(continueShutdown)
-
-        def continueShutdown(ign):
-            self.writeResults(result)
-            return ign
+            self.reactor.stop()
 
         d = runTests()
-        d.addCallback(nextRun)
+        d.addCallback(writeResults)
+        d.addBoth(killWorkers)
         d.addBoth(stop)
 
-        self.reactor.addSystemEventTrigger('before', 'shutdown', beforeShutDown)
         self.reactor.run()
 
         return result
