@@ -65,7 +65,7 @@ class Reporter(TreeReporter):
         for reason, cases in sorted(self._groupResults(errors, formatter), key=lambda x: len(x[1])):
             self._write(self._doubleSeparator)
             self._write(" %d case%s: " % (len(cases), len(cases) > 1 and "s" or ""))
-            if "ERROR" in flavor or "FAILURE" in flavor:
+            if "ERROR" in flavor or "FAIL" in flavor:
                 self._colorizer.write(flavor, self.ERROR)
                 self._writeln('')
                 if len(cases) > self.biggest_problem_len:

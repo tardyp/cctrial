@@ -1,6 +1,7 @@
 import argh
 import shutil
 import os
+import linecache
 
 from unittest import TestSuite
 from twisted.trial import runner
@@ -20,7 +21,7 @@ class CCTrial(object):
         self.opts = opts
         if opts.smart:
             opts.forever = True
-        self.watcher = PythonFileWatcher(self.wake)
+        self.watcher = PythonFileWatcher(self.wake, opts.cwd)
         loader = runner.TestLoader()
         suite = loader.loadByNames(opts.test_names, True)
 
@@ -90,18 +91,22 @@ class CCTrial(object):
             notify("%d fixed" % (self.suite.countTestCases() - len(retry)),
                    "%d tests failures to fix" % (len(retry)), False)
         else:
-            notify("Still broken!", biggest_problem.id(), False)
+            biggest_problem_id = "?"
+            if biggest_problem:
+                biggest_problem_id = biggest_problem.id()
+            notify("Still broken!", biggest_problem_id, False)
             for log in ["test", "out", "err"]:
                 fn = "_trial_temp/0/%s.log" % (log,)
-                print fn, ":"
-                with open(fn) as f:
-                    print f.read()
+                if os.path.exists(fn):
+                    print fn, ":"
+                    with open(fn) as f:
+                        print f.read()
             return False
         retry = sorted(retry)
         self.retrySuite = TestSuite(retry)
         if biggest_problem:
             self.retryTest = TestSuite([biggest_problem])
-        return True
+            return True
 
     @defer.inlineCallbacks
     def runOneSuite(self):
@@ -111,6 +116,8 @@ class CCTrial(object):
         self.suite = self.getNextSuite()
         if self.suite is None:
             defer.returnValue(False)
+        # clear cache for stacktraces
+        linecache.clearcache()
         result = yield self.trial.run(self.suite)
         result = result.original
         retry = result.getRetrySuite()
@@ -127,7 +134,11 @@ class CCTrial(object):
         self.prepareRun()
         if not self.opts.smart:
             self.wake()
-        print "waiting for filesystem changes..."
+        self.maybeWait()
+
+    def maybeWait(self):
+        if reactor.running:
+            print "waiting for filesystem changes..."
 
     @defer.inlineCallbacks
     def wake(self):
@@ -140,11 +151,13 @@ class CCTrial(object):
                 self.watcher.reset()
 
         self.running = True
-        while self.running:
-            self.running = yield self.runOneSuite()
-            self.prepareRun()
-
-        print "waiting for filesystem changes..."
+        try:
+            while self.running:
+                self.running = yield self.runOneSuite()
+                self.prepareRun()
+        finally:
+            self.running = False
+        self.maybeWait()
 
 
 @argh.arg('test_names', nargs='+')
@@ -153,10 +166,12 @@ class CCTrial(object):
 @argh.arg('-g', '--grep', help="filter the tests", default=None)
 @argh.arg('-v', '--verbose', help="list all tests run", action="store_true", default=False)
 @argh.arg('-s', '--smart', help="Smart runs. Run only tests affected by modified file", action="store_true")
+@argh.arg('-c', '--cwd', help="only watch current directory (not all directories in development)", default=False)
 @argh.expects_obj
 def cctrial(opts):
     CCTrial(opts).run()
     reactor.run()
+
 
 def main():
     argh.dispatch_command(cctrial)
