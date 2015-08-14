@@ -57,6 +57,8 @@ Additional features
 - Desktop notification support.
   This one requires ``terminal-notifier`` on OSX or ``notify-send`` on freedesktop capable systems (e.g linux, xBSD).
 
+- Hook mode for running just the appropriate tests in a git post commit hook.
+
 Screenshots
 -----------
 
@@ -171,6 +173,6 @@ Smart mode tries to be smart..
 
 - Best option would be to run all tests in coverage mode, and see which file the tests exercices.
   This would require a lot of overhead in the beginning.
-  
+
 - We choose simpler option: For all the test cases, we look at its module imports statements.
   For all the module imported by the testcase, we decide that the testcase exercices the files defining those modules.
