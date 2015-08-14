@@ -113,7 +113,10 @@ class SmartDB(object):
         module = self.getModuleForFile(fn)
         if module is None:
             return
-        reload(module)
+        try:
+            reload(module)
+        except Exception:
+            traceback.print_exc()
 
         # use trial's testrunner to discover the tests
         loader = runner.TestLoader()
@@ -128,7 +131,10 @@ class SmartDB(object):
                 self.reloadFile(fn)
             elif fn in self.modulePerFile:
                 # reload the module to make sure the stacktraces are correct
-                reload(self.modulePerFile[fn])
+                try:
+                    reload(self.modulePerFile[fn])
+                except Exception:
+                    traceback.print_exc()
             if fn in self.testsPerFile:
                 tests.update(self.testsPerFile[fn])
         if tests:

@@ -83,7 +83,7 @@ class CCTrial(object):
             reactor.stop()
 
     def onFail(self, retry, biggest_problem):
-        if self.suite is self.fullSuite:
+        if self.suite is self.fullSuite or self.suite is self.smartSuite:
             notify("%d tests run" % (self.suite.countTestCases()),
                    "%d tests broken!" % (len(retry)), False)
         elif self.suite is self.retrySuite:
@@ -96,10 +96,12 @@ class CCTrial(object):
                 print fn, ":"
                 with open(fn) as f:
                     print f.read()
-            return
+            return False
         retry = sorted(retry)
         self.retrySuite = TestSuite(retry)
-        self.retryTest = TestSuite([biggest_problem])
+        if biggest_problem:
+            self.retryTest = TestSuite([biggest_problem])
+        return True
 
     @defer.inlineCallbacks
     def runOneSuite(self):
@@ -115,8 +117,7 @@ class CCTrial(object):
         if not retry:
             defer.returnValue(self.onPass())
         else:
-            self.onFail(retry, result.biggest_problem)
-            defer.returnValue(False)
+            defer.returnValue(self.onFail(retry, result.biggest_problem))
 
     def run(self):
         if self.fullSuite.countTestCases() == 0:
