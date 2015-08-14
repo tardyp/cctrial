@@ -3,6 +3,7 @@ from twisted.trial.reporter import Reporter as TrialReporter
 
 
 class Reporter(TreeReporter):
+    curtest = None
     def writepad(self, s, p, color=None):
         if len(s) > p:
             s = (u"\u2026" + s[1 + len(s) - p:]).encode("utf-8")
@@ -19,8 +20,7 @@ class Reporter(TreeReporter):
         return s
 
     def updateLine(self):
-        # print update line only in case of big run
-        if self.numTests == 1:
+        if self.curtest is None:
             return
         self._write("\r")
         self.writepad(self.stripid(self.curtest.id(), 70), 70)

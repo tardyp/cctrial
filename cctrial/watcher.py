@@ -1,5 +1,6 @@
 import os
 import pkgutil
+from subprocess import check_output
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from twisted.internet import reactor
@@ -40,3 +41,19 @@ class PythonFileWatcher(FileSystemEventHandler):
     def stop(self):
         self.observer.stop()
         self.observer.join()
+
+
+class GitFileWatcher(object):
+    modified_files = set()
+
+    def __init__(self, wake_cb):
+        basedir = os.getcwd()
+        for line in check_output(["git", "diff", "--name-only", "--stat", "HEAD~"]).splitlines():
+            if line.endswith(".py"):
+                self.modified_files.add(os.path.join(basedir, line))
+
+    def reset(self):
+        self.modified_files = set()
+
+    def stop(self):
+        pass

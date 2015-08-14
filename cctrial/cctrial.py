@@ -12,6 +12,7 @@ from .runner import Runner
 from .smart import SmartDB
 from .reporter import Reporter
 from .watcher import PythonFileWatcher
+from .watcher import GitFileWatcher
 from .notify import notify
 
 
@@ -21,7 +22,11 @@ class CCTrial(object):
         self.opts = opts
         if opts.smart:
             opts.forever = True
-        self.watcher = PythonFileWatcher(self.wake, opts.cwd)
+        if opts.hook:
+            opts.smart = True
+            self.watcher = GitFileWatcher(self.wake)
+        else:
+            self.watcher = PythonFileWatcher(self.wake, opts.cwd)
         loader = runner.TestLoader()
         suite = loader.loadByNames(opts.test_names, True)
 
@@ -129,8 +134,15 @@ class CCTrial(object):
     def run(self):
         if self.fullSuite.countTestCases() == 0:
             print "no test selected"
+            reactor.callLater(0, reactor.stop)
             return
 
+        if self.opts.hook:
+            self.smartSuite = self.smartDB.getSuiteForModifiedFiles(self.watcher.modified_files)
+            if self.smartSuite is None:
+                print "no test to run"
+                reactor.callLater(0, reactor.stop)
+                return
         self.prepareRun()
         if not self.opts.smart:
             self.wake()
@@ -167,6 +179,7 @@ class CCTrial(object):
 @argh.arg('-v', '--verbose', help="list all tests run", action="store_true", default=False)
 @argh.arg('-s', '--smart', help="Smart runs. Run only tests affected by modified file", action="store_true")
 @argh.arg('-c', '--cwd', help="only watch current directory (not all directories in development)", default=False)
+@argh.arg('-H', '--hook', help="run tests for files just committed", default=False)
 @argh.expects_obj
 def cctrial(opts):
     CCTrial(opts).run()
