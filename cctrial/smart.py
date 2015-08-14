@@ -1,5 +1,8 @@
 import sys
 import types
+import traceback
+import os
+import pkgutil
 import inspect
 import StringIO
 from importlib import import_module
@@ -68,23 +71,48 @@ class SmartDB(object):
                         self.addTestDefinedForFile(self.stripPyc(parent.__file__), test)
                         for fn in self.getImportsForModule(parent):
                             self.addTestForFile(fn, test)
+            elif isinstance(test, runner.ErrorHolder):
+                print "!!! unable to load", test.description, ":", test.error[1]
+                tb = test.error[2]
+                traceback.print_tb(tb)
+            else:
+
+                print test
 
     def printDB(self):
         for fn, tests in self.testsPerFile.items():
             print fn
             print "    " + "\n    ".join([test.id() for test in tests])
 
+    def getModuleForFile(self, fn):
+        module = self.modulePerFile.get(fn)
+        if module is None:
+            for importer, name, ispkg in pkgutil.iter_modules():
+                if fn.startswith(importer.path):
+                    fn = fn[len(importer.path):-3]
+                    fn = fn.strip("/")
+                    module_name = ".".join(fn.split(os.sep))
+                    try:
+                        module = __import__(module_name)
+                    except ImportError:
+                        traceback.print_exc()
+                    break
+        return module
+
     def reloadFile(self, fn):
         # remove tests defined by this file from imported files
-        tests_to_remove = self.testsPerFile[fn]
-        for imported_fn in self.importsPerFile[fn]:
-            self.testsPerFile[imported_fn] -= tests_to_remove
+        if fn in self.importsPerFile:
+            tests_to_remove = self.testsPerFile.get(fn, [])
+            for imported_fn in self.importsPerFile.get(fn, []):
+                self.testsPerFile[imported_fn] -= tests_to_remove
 
-        del self.importsPerFile[fn]
-        del self.testsPerFile[fn]
+            del self.importsPerFile[fn]
+            del self.testsPerFile[fn]
 
         # reload the module
-        module = self.modulePerFile[fn]
+        module = self.getModuleForFile(fn)
+        if module is None:
+            return
         reload(module)
 
         # use trial's testrunner to discover the tests
@@ -96,7 +124,7 @@ class SmartDB(object):
     def getSuiteForModifiedFiles(self, modifiedFiles):
         tests = set()
         for fn in modifiedFiles:
-            if fn in self.testsDefinedPerFile:
+            if os.path.basename(fn).startswith("test_"):
                 self.reloadFile(fn)
             elif fn in self.modulePerFile:
                 # reload the module to make sure the stacktraces are correct

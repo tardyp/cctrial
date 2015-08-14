@@ -4,13 +4,14 @@ import os
 
 from unittest import TestSuite
 from twisted.trial import runner
+from twisted.internet import reactor
+from twisted.internet import defer
 
 from .runner import Runner
 from .smart import SmartDB
 from .reporter import Reporter
 from .watcher import PythonFileWatcher
 from .notify import notify
-from .reactor import FakeReactor
 
 
 class CCTrial(object):
@@ -19,8 +20,7 @@ class CCTrial(object):
         self.opts = opts
         if opts.smart:
             opts.forever = True
-        self.reactor = FakeReactor()
-        self.watcher = PythonFileWatcher(self.reactor.wake)
+        self.watcher = PythonFileWatcher(self.wake)
         loader = runner.TestLoader()
         suite = loader.loadByNames(opts.test_names, True)
 
@@ -32,6 +32,7 @@ class CCTrial(object):
                 print test.id()
 
         self.smartDB = SmartDB(self.fullSuite)
+        self.running = False
         # smartDB.printDB()
 
     def filterSuite(self, suite, grep):
@@ -48,13 +49,7 @@ class CCTrial(object):
             shutil.rmtree("_trial_temp")
         Reporter.numTests = self.fullSuite.countTestCases()
         self.trial = Runner(Reporter, self.opts.jobs, [])
-        self.trial.prepareRun(reactor=self.reactor)
-
-    def wait(self):
-        while not self.watcher.modified_files:
-            self.reactor.wait()
-        self.smartSuite = self.smartDB.getSuiteForModifiedFiles(self.watcher.modified_files)
-        self.watcher.reset()
+        self.trial.prepareRun()
 
     def getNextSuite(self):
         if self.retryTest is not None:
@@ -65,56 +60,63 @@ class CCTrial(object):
             if self.smartSuite is None:
                 print "no test detected for this file..."
                 return None
+            return self.smartSuite
         return self.fullSuite
 
     def onPass(self):
         notify("%d tests run" % (self.suite.countTestCases()),
-               "everything good!")
-
-        if self.retryTest is not None:
+               "everything good!", True)
+        if self.retryTest is self.suite:
             self.retryTest = None
-        elif self.retrySuite is not None:
+            if self.retrySuite.countTestCases() == 1:
+                self.retrySuite = None
+        elif self.retrySuite is self.suite:
             self.retrySuite = None
 
         if self.opts.forever:
-            if self.suite == self.fullSuite:
-                return True
-            else:
+            if self.suite is self.fullSuite or self.suite is self.smartSuite:
                 return False
+            else:
+                return True
 
-        elif self.suite == self.fullSuite:
-            self.done = True
+        elif self.suite is self.fullSuite or self.suite is self.smartSuite:
+            reactor.stop()
 
     def onFail(self, retry, biggest_problem):
-        if self.suite == self.fullSuite:
+        if self.suite is self.fullSuite:
             notify("%d tests run" % (self.suite.countTestCases()),
-                   "%d tests broken!" % (len(retry)))
-        elif self.suite == self.retrySuite:
+                   "%d tests broken!" % (len(retry)), False)
+        elif self.suite is self.retrySuite:
             notify("%d fixed" % (self.suite.countTestCases() - len(retry)),
-                   "%d tests failures to fix" % (len(retry)))
+                   "%d tests failures to fix" % (len(retry)), False)
         else:
-            notify("Still broken!", biggest_problem.id())
-            print "Logs:",
+            notify("Still broken!", biggest_problem.id(), False)
             for log in ["test", "out", "err"]:
-                with open("_trial_temp/0/%s.log" % (log,)) as f:
+                fn = "_trial_temp/0/%s.log" % (log,)
+                print fn, ":"
+                with open(fn) as f:
                     print f.read()
-
+            return
         retry = sorted(retry)
         self.retrySuite = TestSuite(retry)
         self.retryTest = TestSuite([biggest_problem])
 
+    @defer.inlineCallbacks
     def runOneSuite(self):
+        """ run one suite
+        @return True if if should re-run without waiting
+        """
+        self.suite = self.getNextSuite()
         if self.suite is None:
-            return True
-        result = self.trial.run(self.suite).original
-        # already prepare the next run
-        self.prepareRun()
+            defer.returnValue(False)
+        result = yield self.trial.run(self.suite)
+        result = result.original
         retry = result.getRetrySuite()
         if not retry:
-            return self.onPass()
+            defer.returnValue(self.onPass())
         else:
             self.onFail(retry, result.biggest_problem)
-            return True
+            defer.returnValue(False)
 
     def run(self):
         if self.fullSuite.countTestCases() == 0:
@@ -122,16 +124,26 @@ class CCTrial(object):
             return
 
         self.prepareRun()
-        if self.opts.smart:
-            self.wait()
+        if not self.opts.smart:
+            self.wake()
+        print "waiting for filesystem changes..."
 
-        self.done = False
-        while not self.done:
-            self.suite = self.getNextSuite()
-            if self.runOneSuite():
-                self.wait()
+    @defer.inlineCallbacks
+    def wake(self):
+        if self.running:
+            return
 
-        self.watcher.stop()
+        if self.watcher.modified_files:
+            self.smartSuite = self.smartDB.getSuiteForModifiedFiles(self.watcher.modified_files)
+            if self.retryTest is None:
+                self.watcher.reset()
+
+        self.running = True
+        while self.running:
+            self.running = yield self.runOneSuite()
+            self.prepareRun()
+
+        print "waiting for filesystem changes..."
 
 
 @argh.arg('test_names', nargs='+')
@@ -143,7 +155,7 @@ class CCTrial(object):
 @argh.expects_obj
 def cctrial(opts):
     CCTrial(opts).run()
-
+    reactor.run()
 
 def main():
     argh.dispatch_command(cctrial)

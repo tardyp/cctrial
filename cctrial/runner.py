@@ -85,13 +85,10 @@ class Runner(DistTrialRunner):
 
         def stop(ign):
             testDirLock.unlock()
-            self.reactor.stop()
+            return result
 
         d = runTests()
         d.addCallback(writeResults)
         d.addBoth(killWorkers)
         d.addBoth(stop)
-
-        self.reactor.run()
-
-        return result
+        return d
