@@ -4,6 +4,8 @@ from twisted.trial.reporter import Reporter as TrialReporter
 
 class Reporter(TreeReporter):
     curtest = None
+    biggest_problem_len = 0
+    biggest_problem = None
     def writepad(self, s, p, color=None):
         if len(s) > p:
             s = (u"\u2026" + s[1 + len(s) - p:]).encode("utf-8")

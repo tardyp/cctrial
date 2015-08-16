@@ -69,27 +69,34 @@ class CCTrial(object):
             return self.smartSuite
         return self.fullSuite
 
+    def isBigSuite(self):
+        return self.suite is self.fullSuite or self.suite is self.smartSuite
+
     def onPass(self):
+        """decide what to do if the current suite is passed
+        @return True if if should re-run without waiting
+        """
         notify("%d tests run" % (self.suite.countTestCases()),
                "everything good!", True)
+        shouldReRun = False
         if self.retryTest is self.suite:
             self.retryTest = None
+            shouldReRun = True
             if self.retrySuite.countTestCases() == 1:
                 self.retrySuite = None
         elif self.retrySuite is self.suite:
             self.retrySuite = None
+            shouldReRun = True
 
-        if self.opts.forever:
-            if self.suite is self.fullSuite or self.suite is self.smartSuite:
-                return False
-            else:
-                return True
-
-        elif self.suite is self.fullSuite or self.suite is self.smartSuite:
+        if not self.opts.forever and self.isBigSuite():
             reactor.stop()
+        return shouldReRun
 
     def onFail(self, retry, biggest_problem):
-        if self.suite is self.fullSuite or self.suite is self.smartSuite:
+        """decide what to do if the current suite is failed
+        @return True if if should re-run without waiting
+        """
+        if self.isBigSuite():
             notify("%d tests run" % (self.suite.countTestCases()),
                    "%d tests broken!" % (len(retry)), False)
         elif self.suite is self.retrySuite:
