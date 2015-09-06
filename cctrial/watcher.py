@@ -1,4 +1,6 @@
 import os
+import sys
+
 import pkgutil
 from subprocess import check_output
 from watchdog.observers import Observer
@@ -19,8 +21,19 @@ class PythonFileWatcher(FileSystemEventHandler):
             for importer, name, ispkg in pkgutil.iter_modules():
                 if ispkg and '/lib/' not in importer.path:
                     self.observePythonDirs(importer.path)
-
-        self.observer.start()
+        try:
+            self.observer.start()
+        except OSError as e:
+            # clearer error for linux
+            if "inotify watch limit reached" in e:
+                print e
+                print "you should increase the inotify quotas"
+                print
+                print "   sudo sysctl fs.inotify.max_user_watches=100000"
+                print "   sudo sh -c 'echo fs.inotify.max_user_watches=100000>>/etc/sysctl.conf'"
+                sys.exit(1)
+            else:
+                raise
 
     def observePythonDirs(self, path):
         self.observer.schedule(self, path, True)
