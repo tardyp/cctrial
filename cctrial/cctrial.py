@@ -151,8 +151,10 @@ class CCTrial(object):
                 reactor.callLater(0, reactor.stop)
                 return
         self.prepareRun()
-        if not self.opts.smart:
+        if not self.opts.smart or self.opts.hook:
             self.wake()
+        else:
+            print "waiting for filesystem changes..."
         self.maybeWait()
 
     def maybeWait(self):
