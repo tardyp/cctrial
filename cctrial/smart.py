@@ -38,7 +38,7 @@ class SmartDB(object):
         self.testsDefinedPerFile.setdefault(fn, set()).add(test)
 
     def getImportsForModule(self, m):
-        fn = self.stripPyc(m.__file__)
+        fn = self.stripPyc(inspect.getfile(m))
         if fn in self.importsPerFile:
             return self.importsPerFile[fn]
         self.modulePerFile[fn] = m
@@ -55,7 +55,10 @@ class SmartDB(object):
         m = dict(inspect.getmembers(o))
         if '__module__' in m:
             m = import_module(m['__module__'])
-            fn = self.stripPyc(m.__file__)
+            try:
+                fn = self.stripPyc(inspect.getfile(m))
+            except TypeError: # builtin modules don't have a file
+                return None
             self.modulePerFile[fn] = m
             return fn
         if '__file__' in m:
@@ -68,7 +71,7 @@ class SmartDB(object):
             elif isinstance(test, TestCase):
                 for parent in test._parents:
                     if isinstance(parent, types.ModuleType):
-                        self.addTestDefinedForFile(self.stripPyc(parent.__file__), test)
+                        self.addTestDefinedForFile(self.stripPyc(inspect.getfile(parent)), test)
                         for fn in self.getImportsForModule(parent):
                             self.addTestForFile(fn, test)
             elif isinstance(test, runner.ErrorHolder):

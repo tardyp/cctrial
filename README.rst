@@ -20,6 +20,16 @@ Install cctrial in your virtualenv:
 
     pip install cctrial
 
+Linux specific setup
+--------------------
+
+As cctrial is making big use of inotify via the watchdog library, you may need to increase the quotas for inotify
+
+.. code-block:: bash
+
+    sudo sysctl fs.inotify.max_user_watches=100000
+    sudo sh -c 'echo fs.inotify.max_user_watches=100000>>/etc/sysctl.conf'
+
 Workflow description
 --------------------
 
