@@ -64,16 +64,24 @@ class SmartDB(object):
         if '__file__' in m:
             return self.stripPyc(m['__file__'])
 
+    def findModuleForTestCase(self, test):
+        if hasattr(test, "_parents"):
+            for parent in test._parents:
+                if isinstance(parent, types.ModuleType):
+                    return parent
+        else:
+            return import_module(type(test).__module__)
+
     def buildSmartDB(self, suite):
         for test in iter(suite):
             if isinstance(test, TestSuite):
                 self.buildSmartDB(test)
             elif isinstance(test, TestCase):
-                for parent in test._parents:
-                    if isinstance(parent, types.ModuleType):
-                        self.addTestDefinedForFile(self.stripPyc(inspect.getfile(parent)), test)
-                        for fn in self.getImportsForModule(parent):
-                            self.addTestForFile(fn, test)
+                module = self.findModuleForTestCase(test)
+                if module is not None:
+                    self.addTestDefinedForFile(self.stripPyc(inspect.getfile(module)), test)
+                    for fn in self.getImportsForModule(module):
+                        self.addTestForFile(fn, test)
             elif isinstance(test, runner.ErrorHolder):
                 print "!!! unable to load", test.description, ":", test.error[1]
                 tb = test.error[2]
