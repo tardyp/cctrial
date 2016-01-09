@@ -53,7 +53,7 @@ class SmartDB(object):
 
     def findFile(self, o):
         m = dict(inspect.getmembers(o))
-        if '__module__' in m:
+        if '__module__' in m and m['__module__']:
             m = import_module(m['__module__'])
             try:
                 fn = self.stripPyc(inspect.getfile(m))

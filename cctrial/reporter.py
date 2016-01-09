@@ -1,3 +1,6 @@
+import os
+import sys
+
 from twisted.trial.reporter import TreeReporter
 from twisted.trial.reporter import Reporter as TrialReporter
 
@@ -6,7 +9,10 @@ class Reporter(TreeReporter):
     curtest = None
     biggest_problem_len = 0
     biggest_problem = None
+
     def writepad(self, s, p, color=None):
+        if not os.isatty(sys.stdout.fileno()):
+            color = None
         if len(s) > p:
             s = (u"\u2026" + s[1 + len(s) - p:]).encode("utf-8")
         else:
@@ -24,7 +30,10 @@ class Reporter(TreeReporter):
     def updateLine(self):
         if self.curtest is None:
             return
-        self._write("\r")
+        if not os.isatty(sys.stdout.fileno()):
+            self._write("\n")
+        else:
+            self._write("\r")
         self.writepad(self.stripid(self.curtest.id(), 70), 70)
         self.writepad(" % 5d/% 5d" % (self.testsRun, self.numTests), 12)
         self.writepad(" % 5dF" % (len(self.failures)), 12, self.failures and self.FAILURE or None)
