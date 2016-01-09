@@ -10,7 +10,7 @@ README = open(os.path.join(os.path.dirname(__file__), "README.rst")).read()
 
 setup(
     name="cctrial",
-    version="1.2.3",
+    version="1.2.4",
     description="continous trial runner",
     long_description=README,
     author="Pierre Tardy",
