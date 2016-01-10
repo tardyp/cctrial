@@ -45,7 +45,10 @@ class Reporter(TreeReporter):
 
     def addSuccess(self, test):
         TrialReporter.addSuccess(self, test)
-        self.updateLine()
+        if os.isatty(sys.stdout.fileno()):
+            self.updateLine()
+        else:
+            self._write(".")
 
     def addError(self, *args):
         TrialReporter.addError(self, *args)
