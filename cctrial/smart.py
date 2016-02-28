@@ -4,6 +4,7 @@ import traceback
 import os
 import pkgutil
 import inspect
+import warnings
 import StringIO
 from importlib import import_module
 from twisted.trial import runner
@@ -18,13 +19,10 @@ class SmartDB(object):
         self.testsDefinedPerFile = {}
         self.modulePerFile = {}
 
-        # remove any DeprecationWarnings due to inspect
-        old_stderr = sys.stderr
-        sys.stderr = StringIO.StringIO()
-        try:
+        # remove any warnings due to inspect
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
             self.buildSmartDB(suite)
-        finally:
-            sys.stderr = old_stderr
 
     def stripPyc(self, fn):
         if fn.endswith(".pyc"):
