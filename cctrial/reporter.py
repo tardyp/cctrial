@@ -9,6 +9,8 @@ class Reporter(TreeReporter):
     curtest = None
     biggest_problem_len = 0
     biggest_problem = None
+    # For non-TTY output: is cursor at the beginning of the current line.
+    at_line_start = True
 
     def writepad(self, s, p, color=None):
         if not os.isatty(sys.stdout.fileno()):
@@ -27,13 +29,11 @@ class Reporter(TreeReporter):
             s = ".".join(s.split(".")[:-1])
         return s
 
-    def updateLine(self):
-        if self.curtest is None:
-            return
-        if not os.isatty(sys.stdout.fileno()):
-            self._write("\n")
-        else:
-            self._write("\r")
+    @staticmethod
+    def isTTY():
+        return os.isatty(sys.stdout.fileno())
+
+    def writeStatusString(self):
         self.writepad(self.stripid(self.curtest.id(), 70), 70)
         self.writepad(" % 5d/% 5d" % (self.testsRun, self.numTests), 12)
         self.writepad(" % 5dF" % (len(self.failures)), 12, self.failures and self.FAILURE or None)
@@ -43,12 +43,27 @@ class Reporter(TreeReporter):
         self.writepad(" % 5d!" % (len(self.unexpectedSuccesses)), 12,
                       self.unexpectedSuccesses and self.ERROR or None)
 
+    def updateLine(self):
+        if self.curtest is None:
+            return
+        if not self.isTTY():
+            if not self.at_line_start:
+                # Some dots were outputted, need to start new line.
+                self._write("\n")
+            self.writeStatusString()
+            self._write("\n")
+            self.at_line_start = True
+        else:
+            self._write("\r")
+            self.writeStatusString()
+
     def addSuccess(self, test):
         TrialReporter.addSuccess(self, test)
         if os.isatty(sys.stdout.fileno()):
             self.updateLine()
         else:
             self._write(".")
+            self.at_line_start = False
 
     def addError(self, *args):
         TrialReporter.addError(self, *args)
@@ -73,7 +88,8 @@ class Reporter(TreeReporter):
     def startTest(self, test):
         TrialReporter.startTest(self, test)
         self.curtest = test
-        self.updateLine()
+        if os.isatty(sys.stdout.fileno()):
+            self.updateLine()
 
     def _printResults(self, flavor, errors, formatter):
         for reason, cases in sorted(self._groupResults(errors, formatter), key=lambda x: len(x[1])):
@@ -92,7 +108,10 @@ class Reporter(TreeReporter):
     def done(self):
         self.biggest_problem_len = 0
         self.biggest_problem = None
-        self._write("\r" + " " * 150 + "\n")
+        if self.isTTY():
+            self._write("\r" + " " * 150 + "\n")
+        elif not self.at_line_start:
+            self._write("\n")
         TreeReporter.done(self)
         self.updateLine()
         self._write("\n")
