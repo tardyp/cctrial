@@ -52,17 +52,20 @@ class SmartDB(object):
         return importedFiles
 
     def findFile(self, o):
-        m = dict(inspect.getmembers(o))
-        if '__module__' in m and m['__module__']:
-            m = import_module(m['__module__'])
-            try:
-                fn = self.stripPyc(inspect.getfile(m))
-            except TypeError: # builtin modules don't have a file
-                return None
-            self.modulePerFile[fn] = m
-            return fn
-        if '__file__' in m:
-            return self.stripPyc(m['__file__'])
+        try:
+            m = dict(inspect.getmembers(o))
+            if '__module__' in m and m['__module__']:
+                m = import_module(m['__module__'])
+                try:
+                    fn = self.stripPyc(inspect.getfile(m))
+                except TypeError: # builtin modules don't have a file
+                    return None
+                self.modulePerFile[fn] = m
+                return fn
+            if '__file__' in m:
+                return self.stripPyc(m['__file__'])
+        except Exception as e:
+            return None
 
     def findModuleForTestCase(self, test):
         if hasattr(test, "_parents"):
